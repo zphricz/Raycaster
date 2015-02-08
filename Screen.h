@@ -12,6 +12,15 @@ struct Color {
     Uint8 r;
     Uint8 g;
     Uint8 b;
+
+    Color operator+(const Color& other) { return {Uint8(r + other.r), Uint8(g + other.g), Uint8(b + other.b)}; }
+    Color operator-(const Color& other) { return {Uint8(r - other.r), Uint8(g - other.g), Uint8(b - other.b)}; }
+    Color operator*(float factor) { return {Uint8(r * factor), Uint8(g * factor), Uint8(b * factor)}; }
+    Color operator/(float factor) { return {Uint8(r / factor), Uint8(g / factor), Uint8(b / factor)}; }
+    Color& operator+=(const Color& other) { return *this = *this + other; }
+    Color& operator-=(const Color& other) { return *this = *this - other; }
+    Color& operator*=(float factor) { return *this = *this * factor; }
+    Color& operator/=(float factor) { return *this = *this / factor; }
 };
 
 class Screen {

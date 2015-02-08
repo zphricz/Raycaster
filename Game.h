@@ -13,6 +13,7 @@ class Game {
         float direction;
         bool running;
 
+        static void process_slice(Game& self, int i);
         void handle_input();
         void draw_game();
     public:
