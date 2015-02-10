@@ -1,9 +1,12 @@
+#include <string>
+#include <iostream>
 #include "Screen.h"
 #include "Game.h"
-#include <iostream>
+
+using namespace std;
 
 static void error(char * name) {
-    printf("Usage: %s [Screen_x Screen_y]\n", name);
+    printf("Usage: %s [Screen_x Screen_y] [map_name]\n", name);
     exit(1);
 }
 
@@ -13,6 +16,7 @@ int main(int argc, char* argv[])
     int screen_width;
     int screen_height;
     SDL_DisplayMode display;
+    string map_name = "map.txt";
 
     if (SDL_Init(SDL_INIT_VIDEO) < 0) {
         exit(1);
@@ -27,6 +31,15 @@ int main(int argc, char* argv[])
     case 3:
         screen_width = atoi(argv[1]);
         screen_height = atoi(argv[2]);
+        default_screen = false;
+        if (screen_width <= 0 || screen_height <= 0) {
+            error(argv[0]);
+        }
+        break;
+    case 4:
+        screen_width = atoi(argv[1]);
+        screen_height = atoi(argv[2]);
+        map_name = argv[3];
         default_screen = false;
         if (screen_width <= 0 || screen_height <= 0) {
             error(argv[0]);
@@ -49,7 +62,7 @@ int main(int argc, char* argv[])
     }
 
     Screen scr(screen_width, screen_height, full_screen, "Raycaster", true, true);
-    Game g(&scr);
+    Game g(&scr, map_name.c_str());
     g.run();
     return 0;
 }

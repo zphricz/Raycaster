@@ -4,6 +4,7 @@
 #include "Screen.h"
 
 using namespace std;
+using namespace chrono;
 
 Screen::Screen(int size_x, int size_y, bool full_screen, const char * name,
                 bool vsync, bool clipped, bool direct) :
@@ -44,6 +45,7 @@ Screen::Screen(int size_x, int size_y, bool full_screen, const char * name,
                                               width, height);
         pixels = new Uint32[width * height];
     }
+    current_frame_time = last_frame_time = high_resolution_clock::now();
 }
 
 Screen::~Screen() {
@@ -89,6 +91,8 @@ void Screen::commit() {
         SDL_LockTexture(texture, NULL, reinterpret_cast<void**>(&pixels),
                 &pitch);
     }
+    last_frame_time = current_frame_time;
+    current_frame_time = high_resolution_clock::now();
 }
 
 bool Screen::on_screen(int x, int y) {
@@ -163,7 +167,8 @@ void Screen::hor_line(int y, int x1, int x2, Uint32 c) {
     int iter_i;
     int end_i;
     if (clipped) {
-        if (unlikely(y >= height || y < 0)) {
+        if (unlikely(y >= height || y < 0 || (x1 >= width && x2 >= width) ||
+                     (x1 < 0 && x2 < 0))) {
             return;
         }
         x1 = clip_x(x1);
@@ -193,7 +198,8 @@ void Screen::ver_line(int x, int y1, int y2, Uint32 c) {
     int iter_i;
     int end_i;
     if (clipped) {
-        if (unlikely(x >= width || x < 0)) {
+        if (unlikely(x >= width || x < 0 || (y1 >= height && y2 >= height) ||
+                     (y1 < 0 && y2 < 0))) {
             return;
         }
         y1 = clip_y(y1);
@@ -201,10 +207,10 @@ void Screen::ver_line(int x, int y1, int y2, Uint32 c) {
     }
     if (y1 < y2) {
         iter_i = y1 * width + x;
-        end_i = iter_i + (y2 - y1) * width;
+        end_i = y2 * width + x;
     } else {
         iter_i = y2 * width + x;
-        end_i = iter_i + (y1 - y2) * width;
+        end_i = y1 * width + x;
     }
     for(; iter_i <= end_i; iter_i += width) {
         pixels[iter_i] = c;
@@ -240,7 +246,9 @@ void Screen::fill_rect(int x1, int y1, int x2, int y2, Uint32 c) {
     int start_x;
     int dx;
     if (clipped) {
-        if (unlikely(!on_screen(x1, y1) && !on_screen(x2, y2))) {
+        if (unlikely((x1 < 0 && x2 < 0) || (y1 < 0 && y2 < 0) ||
+                     (x1 >= width && x2 >= width) ||
+                     (y1 >= height && y2 >= height))) {
             return;
         }
         x1 = clip_x(x1);
@@ -411,5 +419,14 @@ void Screen::set_recording_style(const char * image_dir, int z_fill) {
     this->image_dir = string(image_dir);
     this->z_fill = z_fill;
     image_number = 0;
+}
+
+float Screen::frame_time() {
+    return duration_cast<duration<float>>(current_frame_time -
+                                          last_frame_time).count();
+}
+
+float Screen::fps() {
+    return 1.0 / frame_time();
 }
 

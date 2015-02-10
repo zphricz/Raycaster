@@ -2,6 +2,7 @@
 #define SCREEN_H
 
 #include <SDL2/SDL.h>
+#include <chrono>
 
 #include <string>
 
@@ -30,13 +31,14 @@ class Screen {
         SDL_Window* window;
         SDL_Renderer* renderer;
         SDL_Texture* texture;
+        std::chrono::high_resolution_clock::time_point last_frame_time;
+        std::chrono::high_resolution_clock::time_point current_frame_time;
         bool recording;
         int image_number;
         std::string image_dir;
         int z_fill;
 
         inline Uint32& pixel_at(int x, int y);
-
     public:
         const int width;
         const int height;
@@ -93,6 +95,8 @@ class Screen {
         void write_tga(const char * name);
         void toggle_recording();
         void set_recording_style(const char * image_dir, int z_fill);
+        float frame_time();
+        float fps();
 };
 
 #endif
