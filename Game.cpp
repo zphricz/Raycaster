@@ -1,6 +1,5 @@
 #include <iostream>
 #include <cmath>
-#include <thread>
 #include <future>
 #include <vector>
 #include <fstream>
@@ -19,14 +18,11 @@ static float deg(float theta) {
     return theta * 180.0 / PI;
 }
 
-const static float turn_rate = rad(180.0); // degrees/sec
-const static float move_rate = 5.0; // distance/sec
-static float fov = rad(90.0); // degrees
-static float plane_distance;
-static float plane_width;
-const static float wall_size = 1.0;
+static const float turn_rate = rad(180.0); // degrees/sec
+static const float move_rate = 5.0; // distance/sec
+static const float wall_size = 1.0;
 
-int& Game::map_at(int x, int y) {
+char& Game::map_at(int x, int y) {
     return map[map_width * y + x];
 }
 
@@ -90,7 +86,7 @@ void Game::handle_input() {
             }
             case SDLK_2: {
                 fov = rad(deg(fov) + 1.0);
-                if (fov >= TWO_PI) {
+                if (fov >= PI) {
                     fov = rad(deg(fov) - 1.0);
                 }
                 plane_distance = plane_width / (tan(fov / 2.0) * 2.0);
@@ -194,44 +190,65 @@ void Game::handle_input() {
     }
 }
 
-Game::Game(Screen* scr, const char* map_name) : 
+Game::Game(Screen* scr, const char* map_name, int num_threads) : 
     scr(scr),
+    fov(rad(90.0)),
+    plane_width(scr->width),
+    plane_distance(scr->width / (tan(fov / 2.0) * 2.0)),
+    num_threads(num_threads),
     running(true) {
     scr->set_recording_style("images", 5);
-    plane_width = scr->width;
-    plane_distance = plane_width / (tan(fov / 2.0) * 2.0);
-    num_threads = (int)thread::hardware_concurrency();
 
+    // Parse the map
     ifstream f(map_name);
-    if (f.is_open()) {
-        f >> map_width >> map_height;
-        f >> position.x >> position.y >> direction;
-        direction = rad(direction);
-        map.reserve(map_width * map_height);
-        int max_val = 0;
-        for (int y = 0; y < map_height; ++y) {
-            for (int x = 0; x < map_width; ++x) {
-                int val;
-                f >> val;
-                map_at(x, y) = val;
-                max_val = max(max_val, val);
+    if (!f.is_open()) {
+        cout << "Error opening: " << map_name << endl;
+        exit(1);
+    }
+    f >> map_width >> map_height;
+    f >> position.x >> position.y >> direction;
+    direction = rad(direction);
+    map.reserve(map_width * map_height);
+    char max_val = 0;
+    while (f.peek() == '\n') { f.ignore(); }
+    for (int y = 0; y < map_height; ++y) {
+        char index;
+        for (int x = 0;; ++x) {
+            f.get(index);
+            if (index == '\n') {
+                break;
             }
+            if (x >= map_width) {
+                cout << "ERROR: Read in too many cells in x direction" << endl;
+                exit(1);
+            }
+            if (index == '\0') {
+                cout << "ERROR: '\0' is  a reserved grid value" << endl;
+                exit(1);
+            }
+            if (index == ' ') {
+                index = '\0';
+            }
+            max_val = max(max_val, index);
+            map_at(x, y) = index;
         }
-        int r, g, b;
-        f >> r >> g >> b;
-        ceiling_color = {(Uint8)r, (Uint8)g, (Uint8)b};
-        f >> r >> g >> b;
-        floor_color = {(Uint8)r, (Uint8)g, (Uint8)b};
+    }
+    while (f.peek() == '\n') { f.ignore(); }
+    int r, g, b;
+    f >> r >> g >> b;
+    ceiling_color = {(Uint8)r, (Uint8)g, (Uint8)b};
+    f >> r >> g >> b;
+    floor_color = {(Uint8)r, (Uint8)g, (Uint8)b};
 
-        colors.reserve(max_val + 1);
-        for (int i = 0; i < max_val; ++i) {
-            int index;
-            f >> index >> r >> g >> b;
-            if (index > max_val) {
-                continue;
-            }
-            colors[index] = {(Uint8)r, (Uint8)g, (Uint8)b};
+    while (f.peek() == '\n') { f.ignore(); }
+    colors.reserve(max_val + 1);
+    while (!f.eof()) {
+        char index;
+        f >> index >> r >> g >> b;
+        if (index > max_val) {
+            continue;
         }
+        colors[index] = {(Uint8)r, (Uint8)g, (Uint8)b};
     }
 }
 
@@ -242,8 +259,8 @@ void Game::process_slice(Game& self, int slice) {
     for (int i = slice * self.scr->width / self.num_threads; i < (slice + 1) * self.scr->width / self.num_threads; ++i) {
         bool y_hit;
         float distance;
-        float plane_dist_x = i - plane_width / 2.0 + 0.5;
-        float angle = self.direction + atan(plane_dist_x / plane_distance);
+        float plane_dist_x = i - self.plane_width / 2.0 + 0.5;
+        float angle = self.direction + atan(plane_dist_x / self.plane_distance);
         Vec2 dist_next;
         Vec2 ray_orientation(cos(angle), sin(angle));
         bool y_positive = (ray_orientation.y > 0.0) ? true: false;
@@ -295,7 +312,7 @@ void Game::process_slice(Game& self, int slice) {
             distance = dist_next.x;
         }
         distance *= cos(angle - self.direction); // Correct the fish-eye effect
-        int length = rint(wall_size * plane_distance / distance);
+        int length = rint(wall_size * self.plane_distance / distance);
         self.scr->ver_line(i, (self.scr->height - length) / 2, (self.scr->height + length) / 2, c);
     }
 }
