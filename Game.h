@@ -23,7 +23,7 @@ class Game {
         bool running;
 
         char& map_at(int x, int y);
-        static void process_slice(Game& self, int i);
+        void render_slice(int i);
         void handle_input();
         void draw_game();
     public:

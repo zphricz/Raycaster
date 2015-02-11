@@ -22,12 +22,13 @@ int main(int argc, char* argv[])
 
     int screen_width = display.w;
     int screen_height = display.h;
-    int num_threads = (int)thread::hardware_concurrency();
+    int num_threads = thread::hardware_concurrency();
     string map_name = "map.txt";
 
     switch (argc) {
     case 5:
-        num_threads = atoi(argv[2]);
+        num_threads = atoi(argv[4]);
+        cout << num_threads << endl;
         if (num_threads <= 0) {
             error(argv[0]);
         }
@@ -57,3 +58,4 @@ int main(int argc, char* argv[])
     g.run();
     return 0;
 }
+

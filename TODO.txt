@@ -1,0 +1,3 @@
+- Fix alpha blending (more a Screen class issue)
+- Add variable pitch feature
+- Add texture mapping

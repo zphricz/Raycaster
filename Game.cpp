@@ -128,6 +128,18 @@ void Game::handle_input() {
                 break;
             }
             }
+            break;
+        }
+        case SDL_MOUSEMOTION: {
+            int dx = event.motion.xrel;
+            direction += 100 * dx * turn_rate * scr->frame_time() / scr->width;
+            if (direction < 0.0) {
+                direction += TWO_PI;
+            }
+            if (direction >= TWO_PI) {
+                direction += TWO_PI;
+            }
+            break;
         }
         default: {
              break;
@@ -168,7 +180,12 @@ void Game::handle_input() {
     int old_y = (int)last_position.y;
     int new_x = (int)position.x;
     int new_y = (int)position.y;
-    if (map_at(new_x, new_y)) { // Collision found
+    if (map_at(old_x, new_y) &&
+        map_at(new_x, old_y) &&
+        !map_at(new_x, new_y)) { // We just phased past a corner
+        position = last_position;
+    }
+    else if (map_at(new_x, new_y)) { // Collision found
         if (new_y != old_y && new_x == old_x) {
             // Crossed y bound and not x bound
             position.y = last_position.y;
@@ -205,23 +222,19 @@ Game::Game(Screen* scr, const char* map_name, int num_threads) :
         cout << "Error opening: " << map_name << endl;
         exit(1);
     }
-    f >> map_width >> map_height;
-    f >> position.x >> position.y >> direction;
-    direction = rad(direction);
-    map.reserve(map_width * map_height);
-    char max_val = 0;
     while (f.peek() == '\n') { f.ignore(); }
-    for (int y = 0; y < map_height; ++y) {
-        char index;
-        for (int x = 0;; ++x) {
+    vector<vector<char>> temp_map;
+    char max_val = 0;
+    map_width = 0;
+    map_height = 0;
+    while (f.peek() != '\n') {
+        map_height++;
+        vector<char> line;
+        int width = 0;
+        while (f.peek() != '\n') {
+            width++;
+            char index;
             f.get(index);
-            if (index == '\n') {
-                break;
-            }
-            if (x >= map_width) {
-                cout << "ERROR: Read in too many cells in x direction" << endl;
-                exit(1);
-            }
             if (index == '\0') {
                 cout << "ERROR: '\0' is  a reserved grid value" << endl;
                 exit(1);
@@ -230,90 +243,123 @@ Game::Game(Screen* scr, const char* map_name, int num_threads) :
                 index = '\0';
             }
             max_val = max(max_val, index);
-            map_at(x, y) = index;
+            line.push_back(index);
+        }
+        f.ignore();
+        temp_map.push_back(move(line));
+        map_width = max(width, map_width);
+    }
+    map.reserve(map_width * map_height);
+    for (int y = 0; y < map_height; ++y) {
+        for (int x = 0; x < map_width; ++x) {
+            map_at(x, y) = temp_map[y][x];
         }
     }
+
     while (f.peek() == '\n') { f.ignore(); }
-    int r, g, b;
+    f >> position.x >> position.y >> direction;
+    direction = rad(direction);
+
+    while (f.peek() == '\n') { f.ignore(); }
+    int r, g, b, a;
     f >> r >> g >> b;
-    ceiling_color = {(Uint8)r, (Uint8)g, (Uint8)b};
+    ceiling_color = {(Uint8)r, (Uint8)g, (Uint8)b, 255};
     f >> r >> g >> b;
-    floor_color = {(Uint8)r, (Uint8)g, (Uint8)b};
+    floor_color = {(Uint8)r, (Uint8)g, (Uint8)b, 255};
 
     while (f.peek() == '\n') { f.ignore(); }
     colors.reserve(max_val + 1);
     while (!f.eof()) {
         char index;
-        f >> index >> r >> g >> b;
+        f >> index >> r >> g >> b >> a;
         if (index > max_val) {
-            continue;
+            cout << "Ignoring color for index: " << index;
         }
-        colors[index] = {(Uint8)r, (Uint8)g, (Uint8)b};
+        colors[index] = {(Uint8)r, (Uint8)g, (Uint8)b, (Uint8) a};
     }
+    SDL_SetRelativeMouseMode(SDL_TRUE);
 }
 
 Game::~Game() {
 }
 
-void Game::process_slice(Game& self, int slice) {
-    for (int i = slice * self.scr->width / self.num_threads; i < (slice + 1) * self.scr->width / self.num_threads; ++i) {
+void Game::render_slice(int slice) {
+    for (int i = slice * scr->width / num_threads; i < (slice + 1) * scr->width / num_threads; ++i) {
         bool y_hit;
         float distance;
-        float plane_dist_x = i - self.plane_width / 2.0 + 0.5;
-        float angle = self.direction + atan(plane_dist_x / self.plane_distance);
+        float plane_dist_x = i - plane_width / 2.0 + 0.5;
+        float angle = direction + atan(plane_dist_x / plane_distance);
         Vec2 dist_next;
         Vec2 ray_orientation(cos(angle), sin(angle));
         bool y_positive = (ray_orientation.y > 0.0) ? true: false;
         bool x_positive = (ray_orientation.x > 0.0) ? true: false;
         Vec2 diff_dist(abs(1.0 / ray_orientation.x), abs(1.0 / ray_orientation.y));
-        int x = (int)self.position.x;
-        int y = (int)self.position.y;
+        int x = (int)position.x;
+        int y = (int)position.y;
         int dx;
         int dy;
         if (x_positive) {
             dx = 1;
-            dist_next.x = (floor(self.position.x) + 1.0 - self.position.x) * diff_dist.x;
+            dist_next.x = (floor(position.x) + 1.0 - position.x) * diff_dist.x;
         } else {
             dx = -1;
-            dist_next.x = -(floor(self.position.x) - self.position.x) * diff_dist.x;
+            dist_next.x = -(floor(position.x) - position.x) * diff_dist.x;
         }
         if (y_positive) {
             dy = 1;
-            dist_next.y = (floor(self.position.y) + 1.0 - self.position.y) * diff_dist.y;
+            dist_next.y = (floor(position.y) + 1.0 - position.y) * diff_dist.y;
         } else {
             dy = -1;
-            dist_next.y = -(floor(self.position.y) - self.position.y) * diff_dist.y;
+            dist_next.y = -(floor(position.y) - position.y) * diff_dist.y;
         }
 
+        char last_block = '\0';
+        Color c{0, 0, 0, 0};
         while (true) {
-            if (dist_next.x < dist_next.y) {
-                // Check the next interesection on an x boundary
-                x += dx;
-                if (self.map_at(x, y)) {
-                    y_hit = false;
-                    break;
+            while (true) {
+                last_block = map_at(x, y);
+                if (dist_next.x < dist_next.y) {
+                    // Check the next interesection on an x boundary
+                    x += dx;
+                    if (map_at(x, y)) {
+                        y_hit = false;
+                        break;
+                    }
+                    dist_next.x += diff_dist.x;
+                } else {
+                    // Check the next interesection on a y boundary
+                    y += dy;
+                    if (map_at(x, y)) {
+                        y_hit = true;
+                        break;
+                    }
+                    dist_next.y += diff_dist.y;
                 }
-                dist_next.x += diff_dist.x;
-            } else {
-                // Check the next interesection on a y boundary
-                y += dy;
-                if (self.map_at(x, y)) {
-                    y_hit = true;
-                    break;
+            }
+            Color other_color = colors[map_at(x, y)];
+            if (map_at(x, y) != last_block) {
+                c += other_color;
+            }
+            if (y_hit) {
+                if (other_color.a == 255) {
+                    c /= 2;
                 }
+                distance = dist_next.y;
                 dist_next.y += diff_dist.y;
+            } else {
+                distance = dist_next.x;
+                dist_next.x += diff_dist.x;
+            }
+            distance *= cos(angle - direction); // Correct the fish-eye effect
+            int length = rint(wall_size * plane_distance / distance);
+            if (other_color.a == 255) {
+                scr->ver_line(i, (scr->height - length) / 2, (scr->height + length) / 2, c);
+                break;
+            } else {
+                scr->ver_line(i, (scr->height - length) / 2, scr->height / 2, c + ceiling_color);
+                scr->ver_line(i, scr->height / 2 + 1, (scr->height + length) / 2, c + floor_color);
             }
         }
-        Color c = self.colors[self.map_at(x, y)];
-        if (y_hit) {
-            c /= 2;
-            distance = dist_next.y;
-        } else {
-            distance = dist_next.x;
-        }
-        distance *= cos(angle - self.direction); // Correct the fish-eye effect
-        int length = rint(wall_size * self.plane_distance / distance);
-        self.scr->ver_line(i, (self.scr->height - length) / 2, (self.scr->height + length) / 2, c);
     }
 }
 
@@ -326,7 +372,7 @@ void Game::draw_game() {
     vector<future<void>> futures;
     futures.reserve(num_threads);
     for (int i = 0; i < num_threads; ++i) {
-        futures.push_back(async(launch::async, process_slice, ref(*this), i));
+        futures.push_back(async(launch::async, &Game::render_slice, this, i));
     }
     for (auto& f: futures) {
         f.get();
