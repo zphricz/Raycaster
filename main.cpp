@@ -28,7 +28,6 @@ int main(int argc, char* argv[])
     switch (argc) {
     case 5:
         num_threads = atoi(argv[4]);
-        cout << num_threads << endl;
         if (num_threads <= 0) {
             error(argv[0]);
         }

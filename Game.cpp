@@ -1,14 +1,14 @@
 #include <iostream>
 #include <cmath>
 #include <future>
-#include <vector>
 #include <fstream>
+#include <boost/math/constants/constants.hpp>
 #include "Game.h"
 
 using namespace std;
 
-static const float PI = 3.14159265358979323846264338327950288419716939937510;
-static const float TWO_PI = 2.0 * PI;
+static const float PI = M_PI;
+static const float TWO_PI = M_PI * 2;
 
 static float rad(float theta) {
     return theta * PI / 180.0;
@@ -18,6 +18,18 @@ static float deg(float theta) {
     return theta * 180.0 / PI;
 }
 
+static float clip_angle(float angle) {
+    if (angle < 0.0) {
+        return angle + TWO_PI;
+    }
+    if (angle >= TWO_PI) {
+        return angle - TWO_PI;
+    }
+    return angle;
+}
+
+static const float pitch_rate = rad(90.0); // degrees/sec
+static const float height_rate = 0.5; // units/sec
 static const float turn_rate = rad(180.0); // degrees/sec
 static const float move_rate = 5.0; // distance/sec
 static const float wall_size = 1.0;
@@ -31,6 +43,8 @@ void Game::handle_input() {
     static bool a_pressed = false;
     static bool s_pressed = false;
     static bool d_pressed = false;
+    static bool up_pressed = false;
+    static bool down_pressed = false;
     static bool left_pressed = false;
     static bool right_pressed = false;
     SDL_Event event;
@@ -66,6 +80,14 @@ void Game::handle_input() {
             }
             case 'd': {
                 d_pressed = true;
+                break;
+            }
+            case SDLK_UP: {
+                up_pressed = true;
+                break;
+            }
+            case SDLK_DOWN: {
+                down_pressed = true;
                 break;
             }
             case SDLK_LEFT: {
@@ -116,6 +138,14 @@ void Game::handle_input() {
                 d_pressed = false;
                 break;
             }
+            case SDLK_UP: {
+                up_pressed = false;
+                break;
+            }
+            case SDLK_DOWN: {
+                down_pressed = false;
+                break;
+            }
             case SDLK_LEFT: {
                 left_pressed = false;
                 break;
@@ -133,11 +163,11 @@ void Game::handle_input() {
         case SDL_MOUSEMOTION: {
             int dx = event.motion.xrel;
             direction += 100 * dx * turn_rate * scr->frame_time() / scr->width;
-            if (direction < 0.0) {
-                direction += TWO_PI;
-            }
-            if (direction >= TWO_PI) {
-                direction += TWO_PI;
+            direction = clip_angle(direction);
+            int dy = event.motion.yrel;
+            pitch += 100 * dy * pitch_rate * scr->frame_time() / scr->width;
+            if (pitch >= PI || pitch < 0.0) {
+                pitch -= 100 * dy * pitch_rate * scr->frame_time() / scr->width;
             }
             break;
         }
@@ -146,40 +176,48 @@ void Game::handle_input() {
         }
         }
     }
-    Vec2 last_position = position;
-    Vec2 direction_moved{0, 0};
+    Vec2f last_position = position;
+    Vec2f direction_moved{0, 0};
     if (w_pressed) {
-        direction_moved += {cos(direction), sin(direction)};
+        direction_moved += Vec2f(cos(direction), sin(direction));
     }
     if (a_pressed) {
-        direction_moved += {cos(direction + rad(270.0)), sin(direction + rad(270.0))};
+        direction_moved += Vec2f(cos(direction + rad(270.0)), sin(direction + rad(270.0)));
     }
     if (s_pressed) {
-        direction_moved += {cos(direction + rad(180.0)), sin(direction + rad(180.0))};
+        direction_moved += Vec2f(cos(direction + rad(180.0)), sin(direction + rad(180.0)));
     }
     if (d_pressed) {
-        direction_moved += {cos(direction + rad(90.0)), sin(direction + rad(90.0))};
+        direction_moved += Vec2f(cos(direction + rad(90.0)), sin(direction + rad(90.0)));
     }
     if (left_pressed) {
         direction -= turn_rate * scr->frame_time();
-        if (direction < 0.0) {
-            direction += TWO_PI;
+        direction = clip_angle(direction);
+    }
+    if (up_pressed) {
+        height += height_rate * scr->frame_time();
+        if (height >= 1.0) {
+            height -= height_rate * scr->frame_time();
+        }
+    }
+    if (down_pressed) {
+        height -= height_rate * scr->frame_time();
+        if (height < 0.0) {
+            height += height_rate * scr->frame_time();
         }
     }
     if (right_pressed) {
         direction += turn_rate * scr->frame_time();
-        if (direction >= TWO_PI) {
-            direction -= TWO_PI;
-        }
+        direction = clip_angle(direction);
     }
     if (direction_moved.magnitude() > 0.0) {
         direction_moved.normalize();
     }
     position += direction_moved * move_rate * scr->frame_time();
-    int old_x = (int)last_position.x;
-    int old_y = (int)last_position.y;
-    int new_x = (int)position.x;
-    int new_y = (int)position.y;
+    int old_x = (int)last_position.x();
+    int old_y = (int)last_position.y();
+    int new_x = (int)position.x();
+    int new_y = (int)position.y();
     if (map_at(old_x, new_y) &&
         map_at(new_x, old_y) &&
         !map_at(new_x, new_y)) { // We just phased past a corner
@@ -188,16 +226,16 @@ void Game::handle_input() {
     else if (map_at(new_x, new_y)) { // Collision found
         if (new_y != old_y && new_x == old_x) {
             // Crossed y bound and not x bound
-            position.y = last_position.y;
+            position.y() = last_position.y();
         } else if (new_y == old_y && new_x != old_x) {
             // Crossed x bound and not y bound
-            position.x = last_position.x;
+            position.x() = last_position.x();
         } else if (new_x != old_x && new_y != old_y) {
             // Crossed both bounds
             if (!map_at(old_x, new_y)) {
-                position.x = last_position.x;
+                position.x() = last_position.x();
             } else if (!map_at(new_x, old_y)) {
-                position.y = last_position.y;
+                position.y() = last_position.y();
             } else {
                 position = last_position;
             }
@@ -209,6 +247,8 @@ void Game::handle_input() {
 
 Game::Game(Screen* scr, const char* map_name, int num_threads) : 
     scr(scr),
+    height(0.5),
+    pitch(rad(90.0)),
     fov(rad(90.0)),
     plane_width(scr->width),
     plane_distance(scr->width / (tan(fov / 2.0) * 2.0)),
@@ -257,7 +297,7 @@ Game::Game(Screen* scr, const char* map_name, int num_threads) :
     }
 
     while (f.peek() == '\n') { f.ignore(); }
-    f >> position.x >> position.y >> direction;
+    f >> position.x() >> position.y() >> direction;
     direction = rad(direction);
 
     while (f.peek() == '\n') { f.ignore(); }
@@ -269,6 +309,7 @@ Game::Game(Screen* scr, const char* map_name, int num_threads) :
 
     while (f.peek() == '\n') { f.ignore(); }
     colors.reserve(max_val + 1);
+    colors['\0'] = Color(0, 0, 0, 0);
     while (!f.eof()) {
         char index;
         f >> index >> r >> g >> b >> a;
@@ -289,75 +330,75 @@ void Game::render_slice(int slice) {
         float distance;
         float plane_dist_x = i - plane_width / 2.0 + 0.5;
         float angle = direction + atan(plane_dist_x / plane_distance);
-        Vec2 dist_next;
-        Vec2 ray_orientation(cos(angle), sin(angle));
-        bool y_positive = (ray_orientation.y > 0.0) ? true: false;
-        bool x_positive = (ray_orientation.x > 0.0) ? true: false;
-        Vec2 diff_dist(abs(1.0 / ray_orientation.x), abs(1.0 / ray_orientation.y));
-        int x = (int)position.x;
-        int y = (int)position.y;
+        Vec2f dist_next;
+        Vec2f ray_orientation(cos(angle), sin(angle));
+        bool y_positive = (ray_orientation.y() > 0.0) ? true: false;
+        bool x_positive = (ray_orientation.x() > 0.0) ? true: false;
+        Vec2f diff_dist(abs(1.0 / ray_orientation.x()), abs(1.0 / ray_orientation.y()));
+        int x = (int)position.x();
+        int y = (int)position.y();
         int dx;
         int dy;
         if (x_positive) {
             dx = 1;
-            dist_next.x = (floor(position.x) + 1.0 - position.x) * diff_dist.x;
+            dist_next.x() = (floor(position.x()) + 1.0 - position.x()) * diff_dist.x();
         } else {
             dx = -1;
-            dist_next.x = -(floor(position.x) - position.x) * diff_dist.x;
+            dist_next.x() = -(floor(position.x()) - position.x()) * diff_dist.x();
         }
         if (y_positive) {
             dy = 1;
-            dist_next.y = (floor(position.y) + 1.0 - position.y) * diff_dist.y;
+            dist_next.y() = (floor(position.y()) + 1.0 - position.y()) * diff_dist.y();
         } else {
             dy = -1;
-            dist_next.y = -(floor(position.y) - position.y) * diff_dist.y;
+            dist_next.y() = -(floor(position.y()) - position.y()) * diff_dist.y();
         }
 
         char last_block = '\0';
+        char next_block;
         Color c{0, 0, 0, 0};
         while (true) {
-            while (true) {
-                last_block = map_at(x, y);
-                if (dist_next.x < dist_next.y) {
-                    // Check the next interesection on an x boundary
-                    x += dx;
-                    if (map_at(x, y)) {
-                        y_hit = false;
-                        break;
-                    }
-                    dist_next.x += diff_dist.x;
+            if (dist_next.x() < dist_next.y()) {
+                // Check the next interesection on an x boundary
+                x += dx;
+                y_hit = false;
+                distance = dist_next.x();
+                dist_next.x() += diff_dist.x();
+            } else {
+                // Check the next interesection on a y boundary
+                y += dy;
+                y_hit = true;
+                distance = dist_next.y();
+                dist_next.y() += diff_dist.y();
+            }
+            next_block = map_at(x, y);
+            if (next_block != last_block) {
+                // Draw blocks at all locations where two blocks meet
+                Color new_color;
+                if (next_block == '\0') {
+                    new_color = colors[last_block];
                 } else {
-                    // Check the next interesection on a y boundary
-                    y += dy;
-                    if (map_at(x, y)) {
-                        y_hit = true;
-                        break;
-                    }
-                    dist_next.y += diff_dist.y;
+                    new_color = colors[next_block];
                 }
-            }
-            Color other_color = colors[map_at(x, y)];
-            if (map_at(x, y) != last_block) {
-                c += other_color;
-            }
-            if (y_hit) {
-                if (other_color.a == 255) {
-                    c /= 2;
+                if (y_hit) {
+                    c = blend(c, new_color / 2);
+                } else {
+                    c = blend(c, new_color);
                 }
-                distance = dist_next.y;
-                dist_next.y += diff_dist.y;
-            } else {
-                distance = dist_next.x;
-                dist_next.x += diff_dist.x;
-            }
-            distance *= cos(angle - direction); // Correct the fish-eye effect
-            int length = rint(wall_size * plane_distance / distance);
-            if (other_color.a == 255) {
-                scr->ver_line(i, (scr->height - length) / 2, (scr->height + length) / 2, c);
-                break;
-            } else {
-                scr->ver_line(i, (scr->height - length) / 2, scr->height / 2, c + ceiling_color);
-                scr->ver_line(i, scr->height / 2 + 1, (scr->height + length) / 2, c + floor_color);
+                distance *= cos(angle - direction); // Correct the fish-eye effect
+                int length = rint(wall_size * plane_distance / distance);
+                int height_offset = (height - 0.5) * plane_width / distance;
+                int pitch_offset = cos(pitch) * plane_width;
+                if (c.a == 255) {
+                    // Draw totally opaque line and quit
+                    scr->ver_line(i, (scr->height - length + height_offset) / 2 + pitch_offset, (scr->height + length + height_offset) / 2 + pitch_offset, c);
+                    break;
+                } else {
+                    // Draw transparent line and continue raycasting
+                    scr->ver_line(i, (scr->height - length + height_offset) / 2 + pitch_offset, scr->height / 2 + pitch_offset, blend(c, ceiling_color));
+                    scr->ver_line(i, scr->height / 2 + pitch_offset + 1, (scr->height + length + height_offset) / 2 + pitch_offset, blend(c, floor_color));
+                }
+                last_block = next_block;
             }
         }
     }
@@ -365,8 +406,9 @@ void Game::render_slice(int slice) {
 
 void Game::draw_game() {
     // Draw the ceiling as gray (floors stay black)
-    scr->fill_rect(0, 0, scr->width - 1, scr->height / 2, ceiling_color);
-    scr->fill_rect(0, scr->height / 2 + 1, scr->width - 1, scr->height - 1, floor_color);
+    int pitch_offset = cos(pitch) * plane_width;
+    scr->fill_rect(0, 0, scr->width - 1, scr->height / 2 + pitch_offset, ceiling_color);
+    scr->fill_rect(0, scr->height / 2 + 1 + pitch_offset, scr->width - 1, scr->height - 1, floor_color);
 
     // Perform ray casting in parallel
     vector<future<void>> futures;

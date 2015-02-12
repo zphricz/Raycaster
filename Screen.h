@@ -3,38 +3,11 @@
 
 #include <SDL2/SDL.h>
 #include <chrono>
-
 #include <string>
+#include "Color.h"
 
 #define likely(x)   __builtin_expect((x),1)
 #define unlikely(x) __builtin_expect((x),0)
-
-struct Color {
-    Uint8 r;
-    Uint8 g;
-    Uint8 b;
-    Uint8 a;
-
-    Color() {}
-    Color(Uint8 r, Uint8 g, Uint8 b) : r(r), g(g), b(b), a(255) {}
-    Color(Uint8 r, Uint8 g, Uint8 b, Uint8 a) : r(r), g(g), b(b), a(a) {}
-
-    Color operator+(const Color& other) {
-        unsigned int out_a = a + other.a * (256 - a) / 256;
-        if (out_a == 0) {
-            return {0, 0, 0, 0};
-        }
-        unsigned int out_r = (r * a + other.r * other.a * (255 - a) / 256) / out_a;
-        unsigned int out_g = (g * a + other.g * other.a * (255 - a) / 256) / out_a;
-        unsigned int out_b = (b * a + other.b * other.a * (255 - a) / 256) / out_a;
-        return {Uint8(out_r), Uint8(out_g), Uint8(out_b), Uint8(out_a)};
-    }
-    Color operator*(float factor) { return {Uint8(r * factor), Uint8(g * factor), Uint8(b * factor), a}; }
-    Color operator/(float factor) { return {Uint8(r / factor), Uint8(g / factor), Uint8(b / factor), a}; }
-    Color& operator+=(const Color& other) { return *this = *this + other; }
-    Color& operator*=(float factor) { return *this = *this * factor; }
-    Color& operator/=(float factor) { return *this = *this / factor; }
-};
 
 class Screen {
     private:
@@ -74,6 +47,7 @@ class Screen {
         int clip_y(int y);
         Uint32 format_color(Uint8 r, Uint8 g, Uint8 b);
         Uint32 format_color(Color c);
+        void set_color(Uint32 c);
         void set_color(Uint8 r, Uint8 g, Uint8 b);
         void set_color(Color c);
         void draw_pixel(int x, int y, Uint32 c);

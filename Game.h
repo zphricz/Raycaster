@@ -3,7 +3,7 @@
 
 #include <vector>
 #include "Screen.h"
-#include "Vec2.h"
+#include "Vec.h"
 
 class Game {
     private:
@@ -11,10 +11,12 @@ class Game {
         int map_width;
         int map_height;
         float direction;
+        float height;
+        float pitch;
         float fov;
         float plane_width;
         float plane_distance;
-        Vec2 position;
+        Vec2f position;
         std::vector<char> map;
         std::vector<Color> colors;
         Color ceiling_color;

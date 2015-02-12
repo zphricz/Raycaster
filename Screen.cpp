@@ -119,6 +119,10 @@ int Screen::clip_y(int y) {
     return y;
 }
 
+void Screen::set_color(Uint32 c) {
+    default_color = c;
+}
+
 void Screen::set_color(Uint8 r, Uint8 g, Uint8 b) {
     default_color = format_color(r, g, b);
 }
