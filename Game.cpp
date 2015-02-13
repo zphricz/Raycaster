@@ -53,8 +53,8 @@ void Game::handle_input() {
         case SDL_MOUSEMOTION: {
             direction += event.motion.xrel * rad(0.75);
             direction = clip_angle(direction);
-            pitch += event.motion.yrel * rad(0.23);
-            pitch = max<float>(rad(1.0), min<float>(pitch, rad(180.0)));
+            pitch -= event.motion.yrel * rad(0.23);
+            pitch = max<float>(rad(-89.0), min<float>(pitch, rad(89.0)));
             break;
         }
         default:
@@ -140,9 +140,10 @@ void Game::handle_input() {
 Game::Game(Screen* scr, const char* map_name, int num_threads) : 
     scr(scr),
     height(0.5),
-    pitch(rad(90.0)),
+    pitch(rad(0.0)),
     fov(rad(90.0)),
     plane_width(scr->width),
+    plane_height(scr->height),
     plane_distance(scr->width / (tan(fov / 2.0) * 2.0)),
     num_threads(num_threads),
     running(true) {
@@ -217,8 +218,7 @@ Game::~Game() {
 }
 
 void Game::render_slice(int slice) {
-    //int pitch_offset = rint(cos(pitch) * plane_width);
-    int pitch_offset = rint(1.0 / tan(pitch) * plane_width);
+    float pitch_offset = tan(pitch) * plane_width;
     for (int i = slice * scr->width / num_threads;
             i < (slice + 1) * scr->width / num_threads; ++i) {
         bool y_hit;
@@ -287,23 +287,27 @@ void Game::render_slice(int slice) {
                 }
                 // Correct the fish-eye effect
                 distance *= cos(angle - direction);
-                int height_offset = rint((height - 0.5) * plane_distance /
-                                         distance);
-                int offset = height_offset + pitch_offset;
-                int length = rint(wall_size * plane_distance / distance);
+                float height_offset = (height - 0.5) * plane_distance /
+                                                       distance;
+                float offset = height_offset + pitch_offset;
+                float length = wall_size * plane_distance / distance;
                 if (c.a == 255) {
                     // Draw totally opaque line and quit
-                    scr->ver_line(i, (scr->height - length) / 2 + offset,
-                                     (scr->height + length) / 2 + offset, c);
+                    scr->ver_line(i,
+                                  rint((plane_height - length) / 2.0 + offset),
+                                  rint((plane_height + length) / 2.0 + offset),
+                                  c);
                     break;
                 } else {
                     // Draw transparent line and continue raycasting
-                    scr->ver_line(i, (scr->height - length) / 2 + offset,
-                                     scr->height / 2 + pitch_offset,
-                                     blend(c, ceiling_color));
-                    scr->ver_line(i, scr->height / 2 + pitch_offset + 1,
-                                     (scr->height + length) / 2 + offset,
-                                     blend(c, floor_color));
+                    scr->ver_line(i,
+                                  rint((plane_height - length) / 2.0 + offset),
+                                  rint(plane_height / 2.0 + pitch_offset),
+                                  blend(c, ceiling_color));
+                    scr->ver_line(i,
+                                  rint(plane_height / 2.0 + pitch_offset) + 1,
+                                  rint((plane_height + length) / 2.0 + offset),
+                                  blend(c, floor_color));
                 }
                 last_block = next_block;
             }
@@ -313,11 +317,10 @@ void Game::render_slice(int slice) {
 
 void Game::draw_game() {
     // Draw the ceiling as gray (floors stay black)
-    //int pitch_offset = rint(cos(pitch) * plane_width);
-    int pitch_offset = rint(1.0 / tan(pitch) * plane_width);
-    scr->fill_rect(0, 0, scr->width - 1, scr->height / 2 + pitch_offset,
-                   ceiling_color);
-    scr->fill_rect(0, scr->height / 2 + 1 + pitch_offset,
+    float pitch_offset = tan(pitch) * plane_width;
+    scr->fill_rect(0, 0, scr->width - 1,
+                   rint(plane_height / 2.0 + pitch_offset), ceiling_color);
+    scr->fill_rect(0, rint(plane_height / 2.0 + pitch_offset) + 1,
                    scr->width - 1, scr->height - 1, floor_color);
 
     // Perform ray casting in parallel

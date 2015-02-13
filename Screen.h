@@ -13,6 +13,18 @@ class Screen {
     private:
         Uint32* pixels;
         Uint32 default_color;
+    public:
+        const int width;
+        const int height;
+        const bool clipped;
+        const int rshift;
+        const int gshift;
+        const int bshift;
+        const bool direct_draw; /* Set to true for increased drawing
+                                   performance. This may result in visual
+                                   artifacts if drawing right after calling
+                                   commit */
+    private:
         SDL_Window* window;
         SDL_Renderer* renderer;
         SDL_Texture* texture;
@@ -22,21 +34,11 @@ class Screen {
         int image_number;
         std::string image_dir;
         int z_fill;
-
+    public:
+        const bool vsynced;
+    private:
         inline Uint32& pixel_at(int x, int y);
     public:
-        const int width;
-        const int height;
-        const int rshift;
-        const int gshift;
-        const int bshift;
-        const bool vsynced;
-        const bool clipped;
-        const bool direct_draw; /* Set to true for increased drawing
-                                   performance. This may result in visual
-                                   artifacts if drawing right after calling
-                                   commit */
-
         Screen(int size_x, int size_y, bool full_screen, const char * name,
                bool vsync, bool clipped, bool direct = false);
         ~Screen();

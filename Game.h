@@ -14,7 +14,8 @@ class Game {
         float height;
         float pitch;
         float fov;
-        float plane_width;
+        const float plane_width;
+        const float plane_height;
         float plane_distance;
         Vec2f position;
         std::vector<char> map;
