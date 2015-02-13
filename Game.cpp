@@ -13,10 +13,6 @@ static float rad(float theta) {
     return theta * PI / 180.0;
 }
 
-static float deg(float theta) {
-    return theta * 180.0 / PI;
-}
-
 static float clip_angle(float angle) {
     if (angle < 0.0) {
         return angle + TWO_PI;
@@ -27,11 +23,10 @@ static float clip_angle(float angle) {
     return angle;
 }
 
-static const float pitch_rate = rad(90.0); // degrees/sec
 static const float height_rate = 0.5; // units/sec
 static const float turn_rate = rad(180.0); // degrees/sec
 static const float move_rate = 5.0; // distance/sec
-static const float fov_rate = 90.0; // degrees/sec
+static const float fov_rate = rad(90.0); // degrees/sec
 static const float wall_size = 1.0;
 
 char& Game::map_at(int x, int y) {
@@ -56,10 +51,10 @@ void Game::handle_input() {
             }
             break;
         case SDL_MOUSEMOTION: {
-            direction += event.motion.xrel * turn_rate / scr->width;
+            direction += event.motion.xrel * rad(0.75);
             direction = clip_angle(direction);
-            pitch += event.motion.yrel * pitch_rate / scr->width;
-            pitch = max<float>(0.0, min<float>(pitch, PI));
+            pitch += event.motion.yrel * rad(0.23);
+            pitch = max<float>(rad(1.0), min<float>(pitch, rad(180.0)));
             break;
         }
         default:
@@ -86,12 +81,12 @@ void Game::handle_input() {
         direction = clip_angle(direction);
     }
     if (key_state[SDL_SCANCODE_1]) {
-        fov = rad(deg(fov) - fov_rate * scr->frame_time());
-        fov = max<float>(0.0, fov);
+        fov = fov - fov_rate * scr->frame_time();
+        fov = max<float>(rad(10.0), fov);
         plane_distance = plane_width / (tan(fov / 2.0) * 2.0);
     }
     if (key_state[SDL_SCANCODE_2]) {
-        fov = rad(deg(fov) + fov_rate * scr->frame_time());
+        fov = fov + fov_rate * scr->frame_time();
         fov = min<float>(fov, rad(179.0));
         plane_distance = plane_width / (tan(fov / 2.0) * 2.0);
     }
@@ -222,7 +217,8 @@ Game::~Game() {
 }
 
 void Game::render_slice(int slice) {
-    int pitch_offset = rint(cos(pitch) * plane_width);
+    //int pitch_offset = rint(cos(pitch) * plane_width);
+    int pitch_offset = rint(1.0 / tan(pitch) * plane_width);
     for (int i = slice * scr->width / num_threads;
             i < (slice + 1) * scr->width / num_threads; ++i) {
         bool y_hit;
@@ -230,7 +226,7 @@ void Game::render_slice(int slice) {
         float plane_dist_x = i - plane_width / 2.0 + 0.5;
         float angle = direction + atan(plane_dist_x / plane_distance);
         Vec2f dist_next;
-        Vec2f ray_orientation(cos(angle), sin(angle));
+        Vec2f ray_orientation(angle);
         bool y_positive = (ray_orientation.y() > 0.0) ? true: false;
         bool x_positive = (ray_orientation.x() > 0.0) ? true: false;
         Vec2f diff_dist(abs(1.0 / ray_orientation.x()),
@@ -317,7 +313,8 @@ void Game::render_slice(int slice) {
 
 void Game::draw_game() {
     // Draw the ceiling as gray (floors stay black)
-    int pitch_offset = rint(cos(pitch) * plane_width);
+    //int pitch_offset = rint(cos(pitch) * plane_width);
+    int pitch_offset = rint(1.0 / tan(pitch) * plane_width);
     scr->fill_rect(0, 0, scr->width - 1, scr->height / 2 + pitch_offset,
                    ceiling_color);
     scr->fill_rect(0, scr->height / 2 + 1 + pitch_offset,

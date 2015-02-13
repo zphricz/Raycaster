@@ -10,6 +10,7 @@ struct Vec {
     std::array<T, N> v;
 
     Vec<T, N>() {
+        zero();
     }
 
     ~Vec<T, N>() {
