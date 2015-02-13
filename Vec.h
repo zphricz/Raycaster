@@ -128,6 +128,11 @@ struct Vec2: public Vec<T, 2> {
     Vec2<T>() {
     }
 
+    Vec2<T>(T angle) {
+        x() = cos(angle);
+        y() = sin(angle);
+    }
+
     Vec2<T>(T _x, T _y) {
         x() = _x;
         y() = _y;

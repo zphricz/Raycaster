@@ -2,7 +2,6 @@
 #include <cmath>
 #include <future>
 #include <fstream>
-#include <boost/math/constants/constants.hpp>
 #include "Game.h"
 
 using namespace std;
@@ -32,6 +31,7 @@ static const float pitch_rate = rad(90.0); // degrees/sec
 static const float height_rate = 0.5; // units/sec
 static const float turn_rate = rad(180.0); // degrees/sec
 static const float move_rate = 5.0; // distance/sec
+static const float fov_rate = 90.0; // degrees/sec
 static const float wall_size = 1.0;
 
 char& Game::map_at(int x, int y) {
@@ -39,176 +39,73 @@ char& Game::map_at(int x, int y) {
 }
 
 void Game::handle_input() {
-    static bool w_pressed = false;
-    static bool a_pressed = false;
-    static bool s_pressed = false;
-    static bool d_pressed = false;
-    static bool up_pressed = false;
-    static bool down_pressed = false;
-    static bool left_pressed = false;
-    static bool right_pressed = false;
+    static const Uint8* key_state = SDL_GetKeyboardState(NULL);
     SDL_Event event;
     while (SDL_PollEvent(&event)) {
         switch (event.type) {
-        case SDL_QUIT: {
+        case SDL_QUIT:
             running = false;
             break;
-        }
-        case SDL_KEYDOWN: {
+        case SDL_KEYDOWN:
             switch (event.key.keysym.sym) {
-            case SDLK_ESCAPE: {
+            case SDLK_ESCAPE:
                 running = false;
                 break;
-            }
-            case SDLK_SPACE: {
+            default:
                 break;
-            }
-            case SDLK_BACKSPACE: {
-                break;
-            }
-            case 'w': {
-                w_pressed = true;
-                break;
-            }
-            case 'a': {
-                a_pressed = true;
-                break;
-            }
-            case 's': {
-                s_pressed = true;
-                break;
-            }
-            case 'd': {
-                d_pressed = true;
-                break;
-            }
-            case SDLK_UP: {
-                up_pressed = true;
-                break;
-            }
-            case SDLK_DOWN: {
-                down_pressed = true;
-                break;
-            }
-            case SDLK_LEFT: {
-                left_pressed = true;
-                break;
-            }
-            case SDLK_RIGHT: {
-                right_pressed = true;
-                break;
-            }
-            case SDLK_1: {
-                fov = rad(deg(fov) - 1.0);
-                if (fov < rad(10.0)) {
-                    fov = rad(deg(fov) + 1.0);
-                }
-                plane_distance = plane_width / (tan(fov / 2.0) * 2.0);
-                break;
-            }
-            case SDLK_2: {
-                fov = rad(deg(fov) + 1.0);
-                if (fov >= PI) {
-                    fov = rad(deg(fov) - 1.0);
-                }
-                plane_distance = plane_width / (tan(fov / 2.0) * 2.0);
-                break;
-            }
-            default: {
-                break;
-            }
             }
             break;
-        }
-        case SDL_KEYUP: {
-            switch (event.key.keysym.sym) {
-            case 'w': {
-                w_pressed = false;
-                break;
-            }
-            case 'a': {
-                a_pressed = false;
-                break;
-            }
-            case 's': {
-                s_pressed = false;
-                break;
-            }
-            case 'd': {
-                d_pressed = false;
-                break;
-            }
-            case SDLK_UP: {
-                up_pressed = false;
-                break;
-            }
-            case SDLK_DOWN: {
-                down_pressed = false;
-                break;
-            }
-            case SDLK_LEFT: {
-                left_pressed = false;
-                break;
-            }
-            case SDLK_RIGHT: {
-                right_pressed = false;
-                break;
-            }
-            default: {
-                break;
-            }
-            }
-            break;
-        }
         case SDL_MOUSEMOTION: {
-            int dx = event.motion.xrel;
-            direction += 100 * dx * turn_rate * scr->frame_time() / scr->width;
+            direction += event.motion.xrel * turn_rate / scr->width;
             direction = clip_angle(direction);
-            int dy = event.motion.yrel;
-            pitch += 100 * dy * pitch_rate * scr->frame_time() / scr->width;
-            if (pitch >= PI || pitch < 0.0) {
-                pitch -= 100 * dy * pitch_rate * scr->frame_time() / scr->width;
-            }
+            pitch += event.motion.yrel * pitch_rate / scr->width;
+            pitch = max<float>(0.0, min<float>(pitch, PI));
             break;
         }
-        default: {
+        default:
              break;
         }
-        }
     }
+
     Vec2f last_position = position;
     Vec2f direction_moved{0, 0};
-    if (w_pressed) {
-        direction_moved += Vec2f(cos(direction), sin(direction));
+    if (key_state[SDL_SCANCODE_UP]) {
+        height += height_rate * scr->frame_time();
+        height = min<float>(height, 1.0);
     }
-    if (a_pressed) {
-        direction_moved += Vec2f(cos(direction + rad(270.0)), sin(direction + rad(270.0)));
+    if (key_state[SDL_SCANCODE_DOWN]) {
+        height -= height_rate * scr->frame_time();
+        height = max<float>(0.0, height);
     }
-    if (s_pressed) {
-        direction_moved += Vec2f(cos(direction + rad(180.0)), sin(direction + rad(180.0)));
-    }
-    if (d_pressed) {
-        direction_moved += Vec2f(cos(direction + rad(90.0)), sin(direction + rad(90.0)));
-    }
-    if (left_pressed) {
+    if (key_state[SDL_SCANCODE_LEFT]) {
         direction -= turn_rate * scr->frame_time();
         direction = clip_angle(direction);
     }
-    if (up_pressed) {
-        height += height_rate * scr->frame_time();
-        if (height >= 1.0) {
-            height -= height_rate * scr->frame_time();
-        }
-    }
-    if (down_pressed) {
-        height -= height_rate * scr->frame_time();
-        if (height < 0.0) {
-            height += height_rate * scr->frame_time();
-        }
-    }
-    if (right_pressed) {
+    if (key_state[SDL_SCANCODE_RIGHT]) {
         direction += turn_rate * scr->frame_time();
         direction = clip_angle(direction);
+    }
+    if (key_state[SDL_SCANCODE_1]) {
+        fov = rad(deg(fov) - fov_rate * scr->frame_time());
+        fov = max<float>(0.0, fov);
+        plane_distance = plane_width / (tan(fov / 2.0) * 2.0);
+    }
+    if (key_state[SDL_SCANCODE_2]) {
+        fov = rad(deg(fov) + fov_rate * scr->frame_time());
+        fov = min<float>(fov, rad(179.0));
+        plane_distance = plane_width / (tan(fov / 2.0) * 2.0);
+    }
+    if (key_state[SDL_SCANCODE_W]) {
+        direction_moved += Vec2f(direction);
+    }
+    if (key_state[SDL_SCANCODE_A]) {
+        direction_moved += Vec2f(direction + rad(270.0));
+    }
+    if (key_state[SDL_SCANCODE_S]) {
+        direction_moved += Vec2f(direction + rad(180.0));
+    }
+    if (key_state[SDL_SCANCODE_D]) {
+        direction_moved += Vec2f(direction + rad(90.0));
     }
     if (direction_moved.magnitude() > 0.0) {
         direction_moved.normalize();
@@ -282,12 +179,12 @@ Game::Game(Screen* scr, const char* map_name, int num_threads) :
             if (index == ' ') {
                 index = '\0';
             }
-            max_val = max(max_val, index);
+            max_val = max<char>(max_val, index);
             line.push_back(index);
         }
         f.ignore();
         temp_map.push_back(move(line));
-        map_width = max(width, map_width);
+        map_width = max<int>(width, map_width);
     }
     map.reserve(map_width * map_height);
     for (int y = 0; y < map_height; ++y) {
@@ -325,7 +222,9 @@ Game::~Game() {
 }
 
 void Game::render_slice(int slice) {
-    for (int i = slice * scr->width / num_threads; i < (slice + 1) * scr->width / num_threads; ++i) {
+    int pitch_offset = rint(cos(pitch) * plane_width);
+    for (int i = slice * scr->width / num_threads;
+            i < (slice + 1) * scr->width / num_threads; ++i) {
         bool y_hit;
         float distance;
         float plane_dist_x = i - plane_width / 2.0 + 0.5;
@@ -334,24 +233,29 @@ void Game::render_slice(int slice) {
         Vec2f ray_orientation(cos(angle), sin(angle));
         bool y_positive = (ray_orientation.y() > 0.0) ? true: false;
         bool x_positive = (ray_orientation.x() > 0.0) ? true: false;
-        Vec2f diff_dist(abs(1.0 / ray_orientation.x()), abs(1.0 / ray_orientation.y()));
+        Vec2f diff_dist(abs(1.0 / ray_orientation.x()),
+                        abs(1.0 / ray_orientation.y()));
         int x = (int)position.x();
         int y = (int)position.y();
         int dx;
         int dy;
         if (x_positive) {
             dx = 1;
-            dist_next.x() = (floor(position.x()) + 1.0 - position.x()) * diff_dist.x();
+            dist_next.x() =
+                (floor(position.x()) + 1.0 - position.x()) * diff_dist.x();
         } else {
             dx = -1;
-            dist_next.x() = -(floor(position.x()) - position.x()) * diff_dist.x();
+            dist_next.x() =
+                -(floor(position.x()) - position.x()) * diff_dist.x();
         }
         if (y_positive) {
             dy = 1;
-            dist_next.y() = (floor(position.y()) + 1.0 - position.y()) * diff_dist.y();
+            dist_next.y() =
+                (floor(position.y()) + 1.0 - position.y()) * diff_dist.y();
         } else {
             dy = -1;
-            dist_next.y() = -(floor(position.y()) - position.y()) * diff_dist.y();
+            dist_next.y() =
+                -(floor(position.y()) - position.y()) * diff_dist.y();
         }
 
         char last_block = '\0';
@@ -385,18 +289,25 @@ void Game::render_slice(int slice) {
                 } else {
                     c = blend(c, new_color);
                 }
-                distance *= cos(angle - direction); // Correct the fish-eye effect
+                // Correct the fish-eye effect
+                distance *= cos(angle - direction);
+                int height_offset = rint((height - 0.5) * plane_distance /
+                                         distance);
+                int offset = height_offset + pitch_offset;
                 int length = rint(wall_size * plane_distance / distance);
-                int height_offset = (height - 0.5) * plane_width / distance;
-                int pitch_offset = cos(pitch) * plane_width;
                 if (c.a == 255) {
                     // Draw totally opaque line and quit
-                    scr->ver_line(i, (scr->height - length + height_offset) / 2 + pitch_offset, (scr->height + length + height_offset) / 2 + pitch_offset, c);
+                    scr->ver_line(i, (scr->height - length) / 2 + offset,
+                                     (scr->height + length) / 2 + offset, c);
                     break;
                 } else {
                     // Draw transparent line and continue raycasting
-                    scr->ver_line(i, (scr->height - length + height_offset) / 2 + pitch_offset, scr->height / 2 + pitch_offset, blend(c, ceiling_color));
-                    scr->ver_line(i, scr->height / 2 + pitch_offset + 1, (scr->height + length + height_offset) / 2 + pitch_offset, blend(c, floor_color));
+                    scr->ver_line(i, (scr->height - length) / 2 + offset,
+                                     scr->height / 2 + pitch_offset,
+                                     blend(c, ceiling_color));
+                    scr->ver_line(i, scr->height / 2 + pitch_offset + 1,
+                                     (scr->height + length) / 2 + offset,
+                                     blend(c, floor_color));
                 }
                 last_block = next_block;
             }
@@ -406,9 +317,11 @@ void Game::render_slice(int slice) {
 
 void Game::draw_game() {
     // Draw the ceiling as gray (floors stay black)
-    int pitch_offset = cos(pitch) * plane_width;
-    scr->fill_rect(0, 0, scr->width - 1, scr->height / 2 + pitch_offset, ceiling_color);
-    scr->fill_rect(0, scr->height / 2 + 1 + pitch_offset, scr->width - 1, scr->height - 1, floor_color);
+    int pitch_offset = rint(cos(pitch) * plane_width);
+    scr->fill_rect(0, 0, scr->width - 1, scr->height / 2 + pitch_offset,
+                   ceiling_color);
+    scr->fill_rect(0, scr->height / 2 + 1 + pitch_offset,
+                   scr->width - 1, scr->height - 1, floor_color);
 
     // Perform ray casting in parallel
     vector<future<void>> futures;

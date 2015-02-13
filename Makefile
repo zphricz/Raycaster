@@ -9,6 +9,7 @@ ELFNAME = raycaster
 
 ifeq ($(OS), Darwin)
 	CXX = g++-4.9
+	CXX = clang++
 endif
 ifeq ($(OS), Linux)
 	CXX = g++
