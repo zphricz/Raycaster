@@ -63,7 +63,7 @@ void Game::handle_input() {
     }
 
     Vec2f last_position = position;
-    Vec2f direction_moved{0, 0};
+    Vec2f direction_moved(0.0, 0.0);
     if (key_state[SDL_SCANCODE_UP]) {
         height += height_rate * scr->frame_time();
         height = min<float>(height, 1.0);

@@ -8,6 +8,7 @@ using namespace chrono;
 
 Screen::Screen(int size_x, int size_y, bool full_screen, const char * name,
                 bool vsync, bool clipped, bool direct) :
+    default_color(format_color(255, 255, 255)),
     width(size_x),
     height(size_y),
     clipped(clipped),
@@ -16,6 +17,9 @@ Screen::Screen(int size_x, int size_y, bool full_screen, const char * name,
     bshift(0),
     direct_draw(direct),
     recording(false),
+    image_number(0),
+    image_dir("."),
+    z_fill(5),
     vsynced(vsync) {
     if (full_screen) {
         window = SDL_CreateWindow(name, 0, 0, width, height,
@@ -26,18 +30,16 @@ Screen::Screen(int size_x, int size_y, bool full_screen, const char * name,
                         width, height, 0);
     }
     if (vsync) {
-        renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_PRESENTVSYNC |
-                                                  SDL_RENDERER_ACCELERATED);
+        renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_PRESENTVSYNC);
     } else {
-        renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED);
+        renderer = SDL_CreateRenderer(window, -1, 0);
     }
-    default_color = format_color(255, 255, 255);
     if (direct_draw) {
         texture = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_ARGB8888,
                                               SDL_TEXTUREACCESS_STREAMING,
                                               width, height);
         int pitch;
-        SDL_LockTexture(texture, NULL, reinterpret_cast<void**>(&pixels),
+        SDL_LockTexture(texture, nullptr, reinterpret_cast<void**>(&pixels),
                 &pitch);
     } else {
         texture = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_ARGB8888,
@@ -82,14 +84,14 @@ void Screen::commit() {
     if (direct_draw) {
         SDL_UnlockTexture(texture);
     } else {
-        SDL_UpdateTexture(texture, NULL, pixels, width * sizeof (Uint32));
+        SDL_UpdateTexture(texture, nullptr, pixels, width * sizeof (Uint32));
     }
-    SDL_RenderCopy(renderer, texture, NULL, NULL);
+    SDL_RenderCopy(renderer, texture, nullptr, nullptr);
     SDL_RenderPresent(renderer);
     if (direct_draw) {
         int pitch;
-        SDL_LockTexture(texture, NULL, reinterpret_cast<void**>(&pixels),
-                &pitch);
+        SDL_LockTexture(texture, nullptr, reinterpret_cast<void**>(&pixels),
+                        &pitch);
     }
     last_frame_time = current_frame_time;
     current_frame_time = high_resolution_clock::now();

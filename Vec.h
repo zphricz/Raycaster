@@ -10,13 +10,16 @@ struct Vec {
     std::array<T, N> v;
 
     Vec<T, N>() {
-        zero();
+    }
+
+    Vec<T, N>(const Vec<T, N>& other) {
+        v = other.v;
     }
 
     ~Vec<T, N>() {
     }
-    
-    T magnitude() const {
+
+    auto magnitude() -> decltype(sqrt(v[0])) const {
         return sqrt(magnitude_square());
     }
 
@@ -67,9 +70,7 @@ struct Vec {
     }
 
     Vec<T, N>& operator=(const Vec<T, N>& rhs) {
-        for (size_t i = 0; i < N; ++i) {
-            v[i] = rhs[i];
-        }
+        v = rhs.v;
         return *this;
     }
 
@@ -113,6 +114,14 @@ struct Vec {
         return v[index];
     }
 
+    bool operator==(const Vec<T, N>& rhs) const {
+        return v == rhs.v;
+    }
+
+    bool operator!=(const Vec<T, N>& rhs) const {
+        return v != rhs.v;
+    }
+
     T dot(const Vec<T, N>& other) const {
         T sum = T();
         for (size_t i = 0; i < N; ++i) {
@@ -121,6 +130,20 @@ struct Vec {
         return sum;
     }
 };
+
+/* This needed the extra template parameter to get the compiler to stop
+ * producing errors on the potentially mismatched types of the Vector
+ * components and factor */
+template <typename T, typename U, size_t N>
+Vec<T, N> operator*(U f, const Vec<T, N>& rhs) {
+    T factor = T(f);
+    Vec<T, N> new_vec;
+    for (size_t i = 0; i < N; ++i) {
+        new_vec[i] = factor * rhs[i];
+    }
+    return new_vec;
+}
+
 
 // It's a tad bit hacky
 template <typename T>
@@ -160,7 +183,7 @@ struct Vec2: public Vec<T, 2> {
         return (*this)[1];
     }
 
-    T theta() const {
+    auto theta() -> decltype(atan2(x(), y())) const {
         return atan2(y(), x());
     }
 };

@@ -1,4 +1,5 @@
-CXXFLAGS = -std=c++11 -Ofast -Wall -Werror
+#CXXFLAGS = -std=c++11 -Ofast -Wall -Werror
+CXXFLAGS = -std=c++11 -Ofast -Wall -Werror -g
 LDFLAGS = -lSDL2
 OS = $(shell uname -s)
 SRC = $(wildcard *.cpp)
