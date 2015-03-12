@@ -170,7 +170,7 @@ Game::Game(SoftScreen* scr, const char* map_name, int num_threads) :
             char index;
             f.get(index);
             if (index == '\0') {
-                cout << "ERROR: '\0' is  a reserved grid value" << endl;
+                cout << "ERROR: '\0' is  a resized grid value" << endl;
                 exit(1);
             }
             if (index == ' ') {
@@ -183,9 +183,9 @@ Game::Game(SoftScreen* scr, const char* map_name, int num_threads) :
         temp_map.push_back(move(line));
         map_width = max<int>(width, map_width);
     }
-    map.reserve(map_width * map_height);
+    map.resize(map_width * map_height);
     for (int y = 0; y < map_height; ++y) {
-        for (int x = 0; x < map_width; ++x) {
+        for (int x = 0; x < temp_map[y].size(); ++x) {
             map_at(x, y) = temp_map[y][x];
         }
     }
@@ -202,7 +202,7 @@ Game::Game(SoftScreen* scr, const char* map_name, int num_threads) :
     floor_color = {(Uint8)r, (Uint8)g, (Uint8)b, 255};
 
     while (f.peek() == '\n') { f.ignore(); }
-    colors.reserve(max_val + 1);
+    colors.resize(max_val + 1);
     colors['\0'] = {0, 0, 0, 0};
     while (!f.eof()) {
         char index;

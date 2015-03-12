@@ -1,5 +1,4 @@
 CXXFLAGS = -std=c++11 -Ofast -Wall -Werror
-#CXXFLAGS = -std=c++11 -O0 -Wall -Werror -g -fsanitize=address -fno-omit-frame-pointer
 LDFLAGS = -lSDL2
 OS = $(shell uname -s)
 SRC = $(wildcard *.cpp)
