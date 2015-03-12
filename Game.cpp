@@ -5,6 +5,7 @@
 #include "Game.h"
 
 using namespace std;
+using namespace Linear;
 
 static const float PI = M_PI;
 static const float TWO_PI = M_PI * 2;
@@ -106,10 +107,10 @@ void Game::handle_input() {
         direction_moved.normalize();
     }
     position += direction_moved * move_rate * scr->frame_time();
-    int old_x = (int)last_position.x();
-    int old_y = (int)last_position.y();
-    int new_x = (int)position.x();
-    int new_y = (int)position.y();
+    int old_x = (int)last_position.x;
+    int old_y = (int)last_position.y;
+    int new_x = (int)position.x;
+    int new_y = (int)position.y;
     if (map_at(old_x, new_y) &&
         map_at(new_x, old_y) &&
         !map_at(new_x, new_y)) { // We just phased past a corner
@@ -118,16 +119,16 @@ void Game::handle_input() {
     else if (map_at(new_x, new_y)) { // Collision found
         if (new_y != old_y && new_x == old_x) {
             // Crossed y bound and not x bound
-            position.y() = last_position.y();
+            position.y = last_position.y;
         } else if (new_y == old_y && new_x != old_x) {
             // Crossed x bound and not y bound
-            position.x() = last_position.x();
+            position.x = last_position.x;
         } else if (new_x != old_x && new_y != old_y) {
             // Crossed both bounds
             if (!map_at(old_x, new_y)) {
-                position.x() = last_position.x();
+                position.x = last_position.x;
             } else if (!map_at(new_x, old_y)) {
-                position.y() = last_position.y();
+                position.y = last_position.y;
             } else {
                 position = last_position;
             }
@@ -137,7 +138,7 @@ void Game::handle_input() {
     }
 }
 
-Game::Game(Screen* scr, const char* map_name, int num_threads) : 
+Game::Game(SoftScreen* scr, const char* map_name, int num_threads) : 
     scr(scr),
     height(0.5),
     pitch(rad(0.0)),
@@ -190,7 +191,7 @@ Game::Game(Screen* scr, const char* map_name, int num_threads) :
     }
 
     while (f.peek() == '\n') { f.ignore(); }
-    f >> position.x() >> position.y() >> direction;
+    f >> position.x >> position.y >> direction;
     direction = rad(direction);
 
     while (f.peek() == '\n') { f.ignore(); }
@@ -202,7 +203,7 @@ Game::Game(Screen* scr, const char* map_name, int num_threads) :
 
     while (f.peek() == '\n') { f.ignore(); }
     colors.reserve(max_val + 1);
-    colors['\0'] = Color(0, 0, 0, 0);
+    colors['\0'] = {0, 0, 0, 0};
     while (!f.eof()) {
         char index;
         f >> index >> r >> g >> b >> a;
@@ -225,56 +226,57 @@ void Game::render_slice(int slice) {
         float distance;
         float plane_dist_x = i - plane_width / 2.0 + 0.5;
         float angle = direction + atan(plane_dist_x / plane_distance);
-        Vec2f dist_next;
+        float dist_next_x;
+        float dist_next_y;
         Vec2f ray_orientation(angle);
-        bool y_positive = (ray_orientation.y() > 0.0) ? true: false;
-        bool x_positive = (ray_orientation.x() > 0.0) ? true: false;
-        Vec2f diff_dist(abs(1.0 / ray_orientation.x()),
-                        abs(1.0 / ray_orientation.y()));
-        int x = (int)position.x();
-        int y = (int)position.y();
+        bool y_positive = (ray_orientation.y > 0.0) ? true: false;
+        bool x_positive = (ray_orientation.x > 0.0) ? true: false;
+        float diff_dist_x = abs(1.0 / ray_orientation.x);
+        float diff_dist_y = abs(1.0 / ray_orientation.y);
+        int x = (int)position.x;
+        int y = (int)position.y;
         int dx;
         int dy;
         if (x_positive) {
             dx = 1;
-            dist_next.x() =
-                (floor(position.x()) + 1.0 - position.x()) * diff_dist.x();
+            dist_next_x =
+                (floor(position.x) + 1.0 - position.x) * diff_dist_x;
         } else {
             dx = -1;
-            dist_next.x() =
-                -(floor(position.x()) - position.x()) * diff_dist.x();
+            dist_next_x =
+                -(floor(position.x) - position.x) * diff_dist_x;
         }
         if (y_positive) {
             dy = 1;
-            dist_next.y() =
-                (floor(position.y()) + 1.0 - position.y()) * diff_dist.y();
+            dist_next_y =
+                (floor(position.y) + 1.0 - position.y) * diff_dist_y;
         } else {
             dy = -1;
-            dist_next.y() =
-                -(floor(position.y()) - position.y()) * diff_dist.y();
+            dist_next_y =
+                -(floor(position.y) - position.y) * diff_dist_y;
         }
 
         char last_block = '\0';
         char next_block;
-        Color c{0, 0, 0, 0};
+        SDL_Color c{0, 0, 0, 0};
         while (true) {
-            if (dist_next.x() < dist_next.y()) {
+            if (dist_next_x < dist_next_y) {
                 // Check the next interesection on an x boundary
                 x += dx;
                 y_hit = false;
-                distance = dist_next.x();
-                dist_next.x() += diff_dist.x();
+                distance = dist_next_x;
+                dist_next_x += diff_dist_x;
             } else {
                 // Check the next interesection on a y boundary
                 y += dy;
                 y_hit = true;
-                distance = dist_next.y();
-                dist_next.y() += diff_dist.y();
+                distance = dist_next_y;
+                dist_next_y += diff_dist_y;
             }
             next_block = map_at(x, y);
             if (next_block != last_block) {
-                // Draw blocks at all locations where two blocks meet
-                Color new_color;
+                // Draw blocks at all locations where two different blocks meet
+                SDL_Color new_color;
                 if (next_block == '\0') {
                     new_color = colors[last_block];
                 } else {
@@ -323,23 +325,27 @@ void Game::draw_game() {
     scr->fill_rect(0, rint(plane_height / 2.0 + pitch_offset) + 1,
                    scr->width - 1, scr->height - 1, floor_color);
 
-    // Perform ray casting in parallel
-    vector<future<void>> futures;
-    futures.reserve(num_threads);
-    for (int i = 0; i < num_threads; ++i) {
-        futures.push_back(async(launch::async, &Game::render_slice, this, i));
-    }
-    for (auto& f: futures) {
-        f.get();
+    if (num_threads == 1) {
+        render_slice(0);
+    } else {
+        // Perform ray casting in parallel
+        vector<future<void>> futures;
+        futures.reserve(num_threads);
+        for (int i = 0; i < num_threads; ++i) {
+            futures.push_back(async(launch::async, &Game::render_slice, this, i));
+        }
+        for (auto& f: futures) {
+            f.get();
+        }
     }
 }
 
 void Game::run() {
+    int i = 0;
     while (running) {
         handle_input();
         draw_game();
         scr->commit();
-        static int i = 0;
         if(i++ == 10) {
             cout << "FPS: " << scr->fps() << endl;
             i = 0;

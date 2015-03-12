@@ -1,5 +1,5 @@
-#CXXFLAGS = -std=c++11 -Ofast -Wall -Werror
-CXXFLAGS = -std=c++11 -Ofast -Wall -Werror -g
+CXXFLAGS = -std=c++11 -Ofast -Wall -Werror
+#CXXFLAGS = -std=c++11 -O0 -Wall -Werror -g -fsanitize=address -fno-omit-frame-pointer
 LDFLAGS = -lSDL2
 OS = $(shell uname -s)
 SRC = $(wildcard *.cpp)
@@ -9,17 +9,18 @@ DEPS = $(patsubst %.cpp, %.d, $(SRC))
 ELFNAME = raycaster
 
 ifeq ($(OS), Darwin)
-	CXX = g++-4.9
 	CXX = clang++
+	#CXX = ~/Desktop/build/Debug+Asserts/bin/clang++
 endif
 ifeq ($(OS), Linux)
+	LDFLAGS += -lpthread
 	CXX = g++
 endif
 
 all: $(ELFNAME)
 
 $(ELFNAME): $(OBJECTS)
-	$(CXX) $(CXXFLAGS) $(LDFLAGS) -o$@ $^
+	$(CXX) $(CXXFLAGS) -o$@ $^ $(LDFLAGS) 
 
 %.o: %.cpp
 	$(CXX) $(CXXFLAGS) -c -MMD -MP $< -o $@

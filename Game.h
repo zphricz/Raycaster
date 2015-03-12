@@ -7,7 +7,7 @@
 
 class Game {
     private:
-        Screen* scr;
+        SoftScreen* scr;
         int map_width;
         int map_height;
         float direction;
@@ -17,11 +17,11 @@ class Game {
         const float plane_width;
         const float plane_height;
         float plane_distance;
-        Vec2f position;
+        Linear::Vec2f position;
         std::vector<char> map;
-        std::vector<Color> colors;
-        Color ceiling_color;
-        Color floor_color;
+        std::vector<SDL_Color> colors;
+        SDL_Color ceiling_color;
+        SDL_Color floor_color;
         const int num_threads;
         bool running;
 
@@ -30,7 +30,7 @@ class Game {
         void handle_input();
         void draw_game();
     public:
-        Game(Screen* scr, const char* map_name, int num_threads);
+        Game(SoftScreen* scr, const char* map_name, int num_threads);
         ~Game();
         void run();
 };

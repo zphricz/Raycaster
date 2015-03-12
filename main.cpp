@@ -52,8 +52,7 @@ int main(int argc, char* argv[])
         full_screen = false;
     }
 
-    Screen scr(screen_width, screen_height, full_screen, "Raycaster", true,
-               true);
+    SoftScreen scr(screen_width, screen_height, "Raycaster", full_screen, true);
     Game g(&scr, map_name.c_str(), num_threads);
     g.run();
     return 0;
