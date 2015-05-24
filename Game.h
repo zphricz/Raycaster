@@ -4,6 +4,7 @@
 #include <vector>
 #include "Screen.h"
 #include "Vec.h"
+#include "Threadpool.h"
 
 class Game {
 private:
@@ -22,8 +23,8 @@ private:
   std::vector<SDL_Color> colors;
   SDL_Color ceiling_color;
   SDL_Color floor_color;
-  const int num_threads;
   bool running;
+  Threadpool tp;
 
   char &map_at(int x, int y);
   void render_slice(int i);

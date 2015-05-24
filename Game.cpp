@@ -1,6 +1,5 @@
 #include <iostream>
 #include <cmath>
-#include <future>
 #include <fstream>
 #include "Game.h"
 
@@ -136,7 +135,7 @@ Game::Game(SoftScreen *scr, const char *map_name, int num_threads)
     : scr(scr), height(0.5), pitch(rad(0.0)), fov(rad(90.0)),
       plane_width(scr->width), plane_height(scr->height),
       plane_distance(scr->width / (tan(fov / 2.0) * 2.0)),
-      num_threads(num_threads), running(true) {
+      running(true), tp(num_threads) {
   scr->set_recording_style("images", 5);
 
   // Parse the map
@@ -216,8 +215,8 @@ Game::~Game() {}
 
 void Game::render_slice(int slice) {
   float pitch_offset = tan(pitch) * plane_width;
-  for (int i = slice * scr->width / num_threads;
-       i < (slice + 1) * scr->width / num_threads; ++i) {
+  for (int i = slice * scr->width / tp.num_threads;
+       i < (slice + 1) * scr->width / tp.num_threads; ++i) {
     bool y_hit;
     float distance;
     float plane_dist_x = i - plane_width / 2.0 + 0.5;
@@ -312,18 +311,14 @@ void Game::draw_game() {
   scr->fill_rect(0, rint(plane_height / 2.0 + pitch_offset) + 1, scr->width - 1,
                  scr->height - 1, floor_color);
 
-  if (num_threads == 1) {
+  if (tp.num_threads == 1) {
     render_slice(0);
   } else {
     // Perform ray casting in parallel
-    vector<future<void>> futures;
-    futures.reserve(num_threads);
-    for (int i = 0; i < num_threads; ++i) {
-      futures.push_back(async(launch::async, &Game::render_slice, this, i));
+    for (int i = 0; i < tp.num_threads; ++i) {
+      tp.submit_job(&Game::render_slice, this, i);
     }
-    for (auto &f : futures) {
-      f.get();
-    }
+    tp.wait_for_all_jobs();
   }
 }
 
