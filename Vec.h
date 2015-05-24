@@ -69,7 +69,7 @@ public:
 
   ~Vec() {}
 
-  auto magnitude() -> decltype(sqrt(T())) const {
+  decltype(sqrt(T())) magnitude() const {
     return sqrt(magnitude_square());
   }
 
@@ -270,9 +270,9 @@ public:
 
   ~Vec() {}
 
-  auto theta() -> decltype(atan2(T(), T())) const { return atan2(y, x); }
+  decltype(atan2(T(), T())) theta() const { return atan2(y, x); }
 
-  auto magnitude() -> decltype(sqrt(T())) const {
+  decltype(sqrt(T())) magnitude() const {
     return sqrt(magnitude_square());
   }
 
@@ -419,7 +419,7 @@ public:
 
   ~Vec() {}
 
-  auto magnitude() -> decltype(sqrt(T())) const {
+  decltype(sqrt(T())) magnitude() const {
     return sqrt(magnitude_square());
   }
 
@@ -534,14 +534,14 @@ public:
   // A vector laying entirely within the xz plane has a pitch of 0.0
   // As the vector points towards the positive y axis, it's pitch increases
   // As the vector points towards the negative y axis, it's pitch decreases
-  auto pitch() -> decltype(atan2(sqrt(T() * T() + T() * T()), T())) const {
+  decltype(atan2(sqrt(T() * T() + T() * T()), T())) pitch() const {
     return atan2(y, sqrt(x * x + z * z));
   }
 
   // A vector pointing entirely along the positive z axis has a yaw of 0.0
   // As the vector points towards the positive x axis, it's yaw increases
   // As the vector points towards the negative x axis, it's yaw decreases
-  auto yaw() -> decltype(atan2(T(), T())) const { return atan2(x, z); }
+  decltype(atan2(T(), T())) yaw() const { return atan2(x, z); }
 
   // Rotates this vector around axis according to the right hand rule by theta
   // radians
@@ -564,8 +564,9 @@ public:
 #else
   auto c = cos(theta);
   auto s = sin(theta);
-  y = y * c - z * s;
+  auto temp = y * c - z * s;
   z = y * s + z * c;
+  y = temp;
 #endif
   }
 
@@ -575,8 +576,9 @@ public:
 #else
   auto c = cos(theta);
   auto s = sin(theta);
-  x = x * c + z * s;
+  auto temp = x * c + z * s;
   z = -x * s + z * c;
+  x = temp;
 #endif
   }
 
@@ -586,8 +588,9 @@ public:
 #else
   auto c = cos(theta);
   auto s = sin(theta);
-  x = x * c - y * s;
+  auto temp = x * c - y * s;
   y = x * s + y * c;
+  x = temp;
 #endif
   }
 
