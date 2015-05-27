@@ -316,7 +316,7 @@ void Game::draw_game() {
   } else {
     // Perform ray casting in parallel
     for (int i = 0; i < tp.num_threads; ++i) {
-      tp.submit_job(&Game::render_slice, this, i);
+      tp.submit_task(&Game::render_slice, this, i);
     }
     tp.wait_for_all_jobs();
   }

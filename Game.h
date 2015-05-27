@@ -2,6 +2,7 @@
 #define GAME_H
 
 #include <vector>
+
 #include "Screen.h"
 #include "Vec.h"
 #include "Threadpool.h"
