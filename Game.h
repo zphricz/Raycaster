@@ -5,7 +5,6 @@
 
 #include "Screen.h"
 #include "Vec.h"
-#include "Threadpool.h"
 
 class Game {
 private:
@@ -25,7 +24,6 @@ private:
   SDL_Color ceiling_color;
   SDL_Color floor_color;
   bool running;
-  Threadpool tp;
 
   char &map_at(int x, int y);
   void render_slice(int i);
@@ -33,7 +31,7 @@ private:
   void draw_game();
 
 public:
-  Game(SoftScreen *scr, const char *map_name, int num_threads);
+  Game(SoftScreen *scr, const char *map_name);
   ~Game();
   void run();
 };

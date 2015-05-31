@@ -2,6 +2,7 @@
 #include <cmath>
 #include <fstream>
 #include "Game.h"
+#include "Threadpool.h"
 
 using namespace std;
 using namespace Linear;
@@ -131,11 +132,11 @@ void Game::handle_input() {
   }
 }
 
-Game::Game(SoftScreen *scr, const char *map_name, int num_threads)
+Game::Game(SoftScreen *scr, const char *map_name)
     : scr(scr), height(0.5), pitch(rad(0.0)), fov(rad(90.0)),
       plane_width(scr->width), plane_height(scr->height),
       plane_distance(scr->width / (tan(fov / 2.0) * 2.0)),
-      running(true), tp(num_threads) {
+      running(true) {
   scr->set_recording_style("images", 5);
 
   // Parse the map
@@ -215,8 +216,8 @@ Game::~Game() {}
 
 void Game::render_slice(int slice) {
   float pitch_offset = tan(pitch) * plane_width;
-  for (int i = slice * scr->width / tp.num_threads;
-       i < (slice + 1) * scr->width / tp.num_threads; ++i) {
+  for (int i = slice * scr->width / Threadpool::get_num_threads();
+       i < (slice + 1) * scr->width / Threadpool::get_num_threads(); ++i) {
     bool y_hit;
     float distance;
     float plane_dist_x = i - plane_width / 2.0 + 0.5;
@@ -311,14 +312,14 @@ void Game::draw_game() {
   scr->fill_rect(0, rint(plane_height / 2.0 + pitch_offset) + 1, scr->width - 1,
                  scr->height - 1, floor_color);
 
-  if (tp.num_threads == 1) {
+  if (Threadpool::get_num_threads() == 1) {
     render_slice(0);
   } else {
     // Perform ray casting in parallel
-    for (int i = 0; i < tp.num_threads; ++i) {
-      tp.submit_task(&Game::render_slice, this, i);
+    for (int i = 0; i < Threadpool::get_num_threads(); ++i) {
+      Threadpool::submit_task(&Game::render_slice, this, i);
     }
-    tp.wait_for_all_jobs();
+    Threadpool::wait_for_all_jobs();
   }
 }
 

@@ -3,6 +3,7 @@
 #include <thread>
 #include "Screen.h"
 #include "Game.h"
+#include "Threadpool.h"
 
 using namespace std;
 
@@ -51,8 +52,9 @@ int main(int argc, char *argv[]) {
     full_screen = false;
   }
 
+  Threadpool::set_num_threads(num_threads);
   SoftScreen scr(screen_width, screen_height, "Raycaster", full_screen, true);
-  Game g(&scr, map_name.c_str(), num_threads);
+  Game g(&scr, map_name.c_str());
   g.run();
   return 0;
 }
