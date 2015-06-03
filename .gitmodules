@@ -1,0 +1,9 @@
+[submodule "Threadpool"]
+	path = Threadpool
+	url = https://github.com/zphricz/Threadpool
+[submodule "Linear"]
+	path = Linear
+	url = https://github.com/zphricz/Linear
+[submodule "Screen"]
+	path = Screen
+	url = https://github.com/zphricz/Screen
