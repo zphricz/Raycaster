@@ -176,7 +176,7 @@ Game::Game(SoftScreen *scr, const char *map_name)
   }
   map.resize(map_width * map_height);
   for (int y = 0; y < map_height; ++y) {
-    for (int x = 0; x < temp_map[y].size(); ++x) {
+    for (int x = 0; x < (int)temp_map[y].size(); ++x) {
       map_at(x, y) = temp_map[y][x];
     }
   }
